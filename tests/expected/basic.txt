@@ -1,0 +1,9 @@
+Basic Commands
+  hello         # Simple command with no args
+  greet         # Command with optional argument
+    name?
+  build         # Command with flags
+    --debug
+    --release
+    --output
+

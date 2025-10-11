@@ -1,0 +1,15 @@
+# ----------
+# Alignment Test
+# ----------
+
+# Short command
+short
+  a?  # Short arg
+  --flag: # Short flag
+  echo "short"
+
+# Very long command name
+verylongcommandname
+  verylongargumentname?   # Very long argument name
+  -s, --verylongflagname: # Very long flag name
+  echo "very long"

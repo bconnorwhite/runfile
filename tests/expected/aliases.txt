@@ -1,0 +1,7 @@
+Command Aliases
+  b, build        # Simple aliases
+  t, test, check
+  d, deploy       # Aliases with arguments
+    target
+  r, run          # Aliases with flags
+    --debug

@@ -1,0 +1,20 @@
+
+# Simple command
+hello:
+  echo "Hello, World!"
+
+# Command with args
+greet
+  name?: # Optional name parameter
+  echo "Hello, ${name:-World}!"
+
+# -----
+# Group 1
+# -----
+
+# Command with flags
+build
+  --debug     # Enable debug mode
+  --release:  # Build in release mode
+  echo "Building with debug: $debug"
+  echo "Release mode: $release"

@@ -1,0 +1,12 @@
+Value Flags
+  build             # Value flags with type hints
+    --output
+    --target
+  deploy            # Mixed boolean and value flags
+    --env
+    --dry-run
+  test              # Short and long value flags
+    -o, --output
+    -t, --timeout
+
+

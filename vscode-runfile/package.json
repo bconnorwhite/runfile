@@ -1,0 +1,35 @@
+{
+  "name": "vscode-runfile",
+  "displayName": "Runfile",
+  "description": "Runfile Language Support",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publisher": "runfile",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "scripts": {
+    "build": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Syntax Highlighting"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "runfile",
+      "aliases": ["Runfile", "runfile"],
+      "extensions": [".runfile", ".Runfile"],
+      "filenames": ["Runfile"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "runfile",
+      "scopeName": "source.runfile",
+      "path": "./syntaxes/runfile.tmLanguage.json"
+    }]
+  }
+}

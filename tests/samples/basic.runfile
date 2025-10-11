@@ -1,0 +1,17 @@
+# ----------
+# Basic Commands
+# ----------
+
+# Simple command with no args
+hello:
+  echo "Hello, World!"
+
+# Command with optional argument
+greet name?:
+  echo "Hello, ${name:-World}!"
+
+# Command with flags
+build --debug --release --output=<file>:
+  echo "Building with debug: $DEBUG"
+  echo "Release mode: $RELEASE"
+  echo "Output: $OUTPUT"

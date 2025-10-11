@@ -1,0 +1,17 @@
+[package]
+name = "run"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "run"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+anyhow = "1.0"
+regex = "1.10"
+ansi_term = "0.12"
+
+[dev-dependencies]
+tempfile = "3.8"

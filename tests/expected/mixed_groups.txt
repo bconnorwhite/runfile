@@ -1,0 +1,8 @@
+hello         # Simple command
+greet         # Command with args
+  name?         # Optional name parameter
+Group 1
+  build         # Command with flags
+    --debug       # Enable debug mode
+    --release     # Build in release mode
+

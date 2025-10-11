@@ -1,0 +1,20 @@
+# ----------
+# Value Flags
+# ----------
+
+# Value flags with type hints
+build --output=<file> --target=<triple>:
+  cargo build --output=$output --target=$target
+
+# Mixed boolean and value flags
+deploy --env=<name> --dry-run:
+  echo "Deploying to $ENV environment"
+  if [ "$DRY_RUN" = "true" ]; then
+    echo "Dry run mode"
+  else
+    echo "Live deployment"
+  fi
+
+# Short and long value flags
+test -o, --output=<file> -t, --timeout=<seconds>:
+  cargo test --output=$output --timeout=$timeout

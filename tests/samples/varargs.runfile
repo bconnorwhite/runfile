@@ -1,0 +1,19 @@
+# ----------
+# Varargs Support
+# ----------
+
+# Simple varargs
+test ...args:
+  cargo test $args
+
+# Varargs with other arguments
+run
+  target
+  ...args:
+  cargo run $target $args
+
+# Varargs with flags
+build
+  --release
+  ...args:
+  cargo build $release $args

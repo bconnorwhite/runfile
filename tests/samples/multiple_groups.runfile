@@ -1,0 +1,47 @@
+# ----------
+# Development
+# ----------
+
+# Build the project
+build
+  --debug     # Enable debug mode
+  --release   # Build in release mode
+  --target=<target>: # Target platform
+  echo "Building for $target"
+
+# Run tests
+test
+  --verbose   # Verbose output
+  --coverage  # Generate coverage report
+  --filter=<pattern>: # Test filter pattern
+  echo "Running tests with filter: $filter"
+
+# ----------
+# Deployment
+# ----------
+
+# Deploy to staging
+deploy-staging
+  --force     # Force deployment
+  --dry-run:  # Dry run mode
+  echo "Deploying to staging"
+
+# Deploy to production
+deploy-prod
+  --force     # Force deployment
+  --backup:   # Create backup
+  echo "Deploying to production"
+
+# ----------
+# Utilities
+# ----------
+
+# Clean up
+clean
+  --all       # Clean all
+  --cache:    # Clean cache
+  echo "Cleaning up"
+
+# Show help
+help:
+  echo "Available commands:"

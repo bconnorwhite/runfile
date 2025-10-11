@@ -1,0 +1,8 @@
+Alignment Test
+  short                     # Short command
+    a?                        # Short arg
+    --flag                    # Short flag
+  verylongcommandname       # Very long command name
+    verylongargumentname?     # Very long argument name
+    -s, --verylongflagname    # Very long flag name
+

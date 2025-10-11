@@ -1,0 +1,18 @@
+# ----------
+# Command Aliases
+# ----------
+
+# Simple aliases
+b, build:
+  cargo build
+
+t, test, check:
+  cargo test
+
+# Aliases with arguments
+d, deploy target:
+  echo "Deploying to $target"
+
+# Aliases with flags
+r, run --debug:
+  cargo run $debug

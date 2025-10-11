@@ -1,0 +1,17 @@
+# ----------
+# Inline Args and Flags
+# ----------
+
+# This is about the command
+command arg -f, --flag -o, --other:
+  echo "Running command with inline args and flags"
+  echo "arg: $arg"
+  echo "flag: $flag"
+  echo "other: $other"
+
+# Another command with inline args
+test input? -v, --verbose --output=<file>:
+  echo "Testing with inline args"
+  echo "input: $input"
+  echo "verbose: $verbose"
+  echo "output: $output"

@@ -1,0 +1,13 @@
+
+# Run the project
+run args...:
+  cargo run $args
+
+# Run tests
+test args...:
+  cargo test $args
+
+# Generate coverage report
+coverage
+  -o, --open:  # Open coverage report in browser
+  ./scripts/coverage.sh $open

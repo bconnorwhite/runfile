@@ -1,0 +1,11 @@
+Unicode & International
+  测试            # Command with unicode characters
+    arg?              # 测试参数
+    --标志          # 测试标志
+  emoji             # Command with emoji
+    🚀?             # Rocket emoji argument
+    --🎯            # Target emoji flag
+  special-unicode   # Command with special unicode
+    arg?              # Argument with ñ, é, ü, ç characters
+    --flag            # Flag with special chars
+

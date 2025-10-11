@@ -1,0 +1,45 @@
+# ----------
+# Edge Cases
+# ----------
+
+# Very long command name
+verylongcommandnamethatexceedstypicallimits
+  shortarg?  # Short argument name
+  --verylongflagnamethatexceedstypicallimits: # Very long flag name
+  echo "Running very long command"
+
+# Command with special characters in names
+test-special_chars
+  arg_with_underscores?     # Argument with underscores
+  --flag-with-dashes        # Flag with dashes
+  --flag_with_underscores:  # Flag with underscores
+  echo "Special chars: $arg_with_underscores"
+
+# Command with minimal description
+minimal
+  a?    # a
+  --b:  # b
+  echo "minimal"
+
+# Command with very long descriptions
+verbose
+  argument? # This is a very long description that should test how the alignment works when we have extremely long descriptions that might wrap or cause formatting issues
+  --flag:   # Another very long description that should test the alignment and formatting capabilities of the help system when dealing with extremely verbose documentation
+  echo "verbose command"
+
+# Command with no description
+nodocs
+  arg
+  --flag:
+  echo "no docs"
+
+# Command with mixed argument types
+mixed
+  required_arg       # Required argument
+  optional_arg?      # Optional argument
+  -r, --release      # Short and long flag
+  --debug            # Long flag only
+  -v, --verbose      # Another short and long flag
+  --output=<file>:   # Flag with value
+  echo "Mixed args: $required_arg $optional_arg"
+  echo "Flags: release=$release debug=$debug verbose=$verbose output=$output"

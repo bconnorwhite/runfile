@@ -1,0 +1,9 @@
+Varargs Support
+  test          # Simple varargs
+    ...args
+  run           # Varargs with other arguments
+    target
+    ...args
+  build         # Varargs with flags
+    ...args
+    --release

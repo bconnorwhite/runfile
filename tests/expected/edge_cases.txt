@@ -1,0 +1,24 @@
+Edge Cases
+  verylongcommandnamethatexceedstypicallimits   # Very long command name
+    shortarg?                                     # Short argument name
+    --verylongflagnamethatexceedstypicallimits    # Very long flag name
+  test-special_chars                            # Command with special characters in names
+    arg_with_underscores?                         # Argument with underscores
+    --flag-with-dashes                            # Flag with dashes
+    --flag_with_underscores                       # Flag with underscores
+  minimal                                       # Command with minimal description
+    a?                                            # a
+    --b                                           # b
+  verbose                                       # Command with very long descriptions
+    argument?                                     # This is a very long description that should test how the alignment works when we have extremely long descriptions that might wrap or cause formatting issues
+    --flag                                        # Another very long description that should test the alignment and formatting capabilities of the help system when dealing with extremely verbose documentation
+  nodocs                                        # Command with no description
+    arg
+    --flag
+  mixed                                         # Command with mixed argument types
+    required_arg                                  # Required argument
+    optional_arg?                                 # Optional argument
+    -r, --release                                 # Short and long flag
+    --debug                                       # Long flag only
+    -v, --verbose                                 # Another short and long flag
+    --output                                      # Flag with value

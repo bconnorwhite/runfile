@@ -1,0 +1,24 @@
+Development
+  build           # Build the project
+    --debug         # Enable debug mode
+    --release       # Build in release mode
+    --target        # Target platform
+  test            # Run tests
+    --verbose       # Verbose output
+    --coverage      # Generate coverage report
+    --filter        # Test filter pattern
+
+Deployment
+  deploy-staging  # Deploy to staging
+    --force         # Force deployment
+    --dry-run       # Dry run mode
+  deploy-prod     # Deploy to production
+    --force         # Force deployment
+    --backup        # Create backup
+
+Utilities
+  clean           # Clean up
+    --all           # Clean all
+    --cache         # Clean cache
+  help            # Show help
+

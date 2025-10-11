@@ -1,0 +1,10 @@
+Inline Args and Flags
+  command           # This is about the command
+    arg
+    -f, --flag
+    -o, --other
+  test              # Another command with inline args
+    input?
+    -v, --verbose
+    --output
+
