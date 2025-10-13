@@ -4,25 +4,47 @@ use std::fs;
 
 use crate::phases::{TokenizePhase, ParsePhase, ResolvePhase, RunPhase};
 
+pub struct PipelineOptions {
+  pub directory: Option<PathBuf>,
+}
+
+impl Default for PipelineOptions {
+  fn default() -> Self {
+    Self {
+      directory: None,
+    }
+  }
+}
+
 pub struct Pipeline {
   pub tokenize: TokenizePhase,
   pub parse: ParsePhase,
   pub resolve: ResolvePhase,
   pub run: RunPhase,
+  pub options: PipelineOptions,
 }
 
 impl Pipeline {
   pub fn new() -> Self {
+    Self::with_options(PipelineOptions::default())
+  }
+
+  pub fn with_options(options: PipelineOptions) -> Self {
     Self {
       tokenize: TokenizePhase::new(),
       parse: ParsePhase::new(),
       resolve: ResolvePhase::new(),
       run: RunPhase::new(),
+      options,
     }
   }
 
   pub fn find_runfile(&self) -> Result<PathBuf> {
-    let mut current_dir = std::env::current_dir()?;
+    let mut current_dir = if let Some(dir) = &self.options.directory {
+      dir.clone()
+    } else {
+      std::env::current_dir()?
+    };
 
     loop {
       let runfile_path = current_dir.join("Runfile");
@@ -85,45 +107,26 @@ mod tests {
 
   #[test]
   fn test_find_runfile_in_current_dir() {
-    use std::env;
-    use tempfile::TempDir;
-
     // Create a temporary directory for the test
     let temp_dir = TempDir::new().unwrap();
-    let original_dir = env::current_dir().unwrap();
 
-    // Change to the temporary directory
-    env::set_current_dir(&temp_dir).unwrap();
-
-    let pipeline = Pipeline::new();
+    let pipeline = Pipeline::with_options(PipelineOptions { directory: Some(temp_dir.path().to_path_buf()) });
 
     // Create a temporary Runfile in the temp directory
     let test_content = "test:\n  echo \"Hello\"";
-    fs::write("Runfile", test_content).unwrap();
+    fs::write(temp_dir.path().join("Runfile"), test_content).unwrap();
 
     let result = pipeline.find_runfile();
     assert!(result.is_ok());
-
-    // Restore original directory
-    env::set_current_dir(original_dir).unwrap();
-    // TempDir will be automatically cleaned up when it goes out of scope
   }
 
   #[test]
   fn test_find_runfile_not_found() {
     // Create a temporary directory with no Runfile
     let temp_dir = TempDir::new().unwrap();
-    let temp_path = temp_dir.path();
 
-    // Change to the temporary directory
-    let original_dir = std::env::current_dir().unwrap();
-    std::env::set_current_dir(&temp_path).unwrap();
-
-    let pipeline = Pipeline::new();
+    let pipeline = Pipeline::with_options(PipelineOptions { directory: Some(temp_dir.path().to_path_buf()) });
     let result = pipeline.find_runfile();
-
-    // Restore original directory
-    std::env::set_current_dir(&original_dir).unwrap();
 
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("No Runfile found"));
@@ -131,24 +134,16 @@ mod tests {
 
   #[test]
   fn test_execute_command_with_suffix_varargs_zero_args() {
-    use std::env;
     let temp_dir = TempDir::new().unwrap();
-    let original_dir = env::current_dir().unwrap();
-
-    // Change to the temporary directory
-    env::set_current_dir(&temp_dir).unwrap();
 
     // Suffix varargs form should be accepted and optional
     let runfile_content = "test args...:\n  echo OK\n";
-    fs::write("Runfile", runfile_content).unwrap();
+    fs::write(temp_dir.path().join("Runfile"), runfile_content).unwrap();
 
-    let pipeline = Pipeline::new();
+    let pipeline = Pipeline::with_options(PipelineOptions { directory: Some(temp_dir.path().to_path_buf()) });
     let result = pipeline.execute_command("test", vec![]);
 
     // Should succeed with zero args for varargs
     assert!(result.is_ok(), "expected success with zero args, got: {:?}", result);
-
-    // Restore original directory
-    env::set_current_dir(original_dir).unwrap();
   }
 }
