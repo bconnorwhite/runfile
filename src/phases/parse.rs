@@ -725,21 +725,6 @@ mod tests {
   }
 
   #[test]
-  fn test_parse_single_line_group_header() {
-    let tokenizer = TokenizePhase::new();
-    let parser = ParsePhase::new();
-
-    let content = "# --- Build Commands ---\n\nbuild:\n  echo \"Building\"";
-    let tokens = tokenizer.tokenize(content).unwrap();
-    let runfile = parser.parse(tokens).unwrap();
-
-    assert_eq!(runfile.groups.len(), 1);
-    assert_eq!(runfile.groups[0].name, "Build Commands");
-    assert_eq!(runfile.commands.len(), 1);
-    assert_eq!(runfile.commands[0].group, Some("Build Commands".to_string()));
-  }
-
-  #[test]
   fn test_parse_multiple_commands() {
     let tokenizer = TokenizePhase::new();
     let parser = ParsePhase::new();

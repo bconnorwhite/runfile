@@ -117,27 +117,6 @@ impl TokenizePhase {
     false
   }
 
-  /// Check if a line is a single-line group header (starts with # followed by dashes, has text, ends with dashes)
-  fn is_single_line_group_header(&self, line: &str) -> bool {
-    let trimmed = line.trim();
-    if !trimmed.starts_with("# ") || trimmed.len() <= 4 {
-      return false;
-    }
-
-    let content = &trimmed[2..]; // Remove "# "
-    let first_dash = content.find('-');
-    let last_dash = content.rfind('-');
-
-    if let (Some(first), Some(last)) = (first_dash, last_dash) {
-      // Check if there's text between the dashes
-      let text_between = &content[first..=last];
-      let has_text = text_between.chars().any(|c| c != '-');
-      has_text && first < last
-    } else {
-      false
-    }
-  }
-
   pub fn tokenize(&self, content: &str) -> Result<Vec<Token>> {
     let mut tokens = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
@@ -146,30 +125,6 @@ impl TokenizePhase {
     while i < lines.len() {
       let line = lines[i];
       let trimmed = line.trim();
-
-      // Check for single-line group header: # -+ Group Name -+
-      if self.is_single_line_group_header(trimmed) {
-        let content = trimmed.strip_prefix("# ").unwrap_or("");
-
-        // Find the first and last dash positions
-        let first_dash = content.find('-').unwrap_or(0);
-        let last_dash = content.rfind('-').map(|i| i + 1).unwrap_or(content.len());
-
-        if first_dash < last_dash && last_dash > first_dash {
-          // Extract text between dashes
-          let group_name = content[first_dash..last_dash]
-            .chars()
-            .filter(|&c| c != '-')
-            .collect::<String>()
-            .trim()
-            .to_string();
-          if !group_name.is_empty() {
-            tokens.push(Token::GroupHeader { name: group_name });
-            i += 1;
-            continue;
-          }
-        }
-      }
 
       // Check for multi-line group header: # -+ \n # Group Name \n # -+
       if self.is_separator_line(trimmed) {
@@ -208,10 +163,7 @@ impl TokenizePhase {
                 false
               };
 
-              // Also check if this line itself is a group name (single-line group header)
-              let is_single_line_group = self.is_single_line_group_header(prev_line);
-
-              if !is_group_name && !is_single_line_group {
+              if !is_group_name {
                 comment_lines.insert(0, prev_line.strip_prefix('#').unwrap_or("").trim().to_string());
               }
             }
@@ -234,7 +186,7 @@ impl TokenizePhase {
       } else {
         // Check if this is a comment that might be attached to a command
         // Special case: shebang lines should be processed as script lines
-        if trimmed.starts_with('#') && !self.is_separator_line(trimmed) && !self.is_single_line_group_header(trimmed) && !trimmed.starts_with("#!/") {
+        if trimmed.starts_with('#') && !self.is_separator_line(trimmed) && !trimmed.starts_with("#!/") {
           // Check if there's a command coming up (after any number of consecutive comments)
           let mut j = i + 1;
           let mut found_command = false;
@@ -242,7 +194,7 @@ impl TokenizePhase {
             let next_line = lines[j].trim();
             if next_line.is_empty() {
               j += 1;
-            } else if next_line.starts_with('#') && !self.is_separator_line(next_line) && !self.is_single_line_group_header(next_line) {
+            } else if next_line.starts_with('#') && !self.is_separator_line(next_line) {
               // Another comment, keep looking
               j += 1;
             } else if self.is_command_line(next_line) {
@@ -477,9 +429,6 @@ impl TokenizePhase {
       }));
     }
 
-
-
-
     // Indented argument or flag: must be exactly 2 spaces, no more
     // Allow shebang lines even when indented
     if line.starts_with("  ") && !line.starts_with("   ") && (!trimmed.starts_with('#') || trimmed.starts_with("#!/")) {
@@ -555,25 +504,6 @@ mod tests {
   use super::*;
 
   // Group Header Tests
-  #[test]
-  fn test_group_header_single_line_various_dashes() {
-    let tokenizer = TokenizePhase::new();
-
-    // Test different dash counts
-    let test_cases = vec![
-      ("# - Group -", "Group"),
-      ("# -- Group --", "Group"),
-      ("# --- Group ---", "Group"),
-      ("# ----- Group -----", "Group"),
-      ("# ---------- Group ----------", "Group"),
-      ("# -------------------- Group --------------------", "Group"),
-    ];
-
-    for (input, expected) in test_cases {
-      let tokens = tokenizer.tokenize(input).unwrap();
-      assert_eq!(tokens[0], Token::GroupHeader { name: expected.to_string() });
-    }
-  }
 
   #[test]
   fn test_group_header_multi_line_various_dashes() {
@@ -590,14 +520,6 @@ mod tests {
       let tokens = tokenizer.tokenize(input).unwrap();
       assert_eq!(tokens[0], Token::GroupHeader { name: expected.to_string() });
     }
-  }
-
-  #[test]
-  fn test_group_header_with_spaces() {
-    let tokenizer = TokenizePhase::new();
-    let content = "# ---   Group Name   ---";
-    let tokens = tokenizer.tokenize(content).unwrap();
-    assert_eq!(tokens[0], Token::GroupHeader { name: "Group Name".to_string() });
   }
 
   // Command Tests
