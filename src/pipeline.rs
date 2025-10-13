@@ -128,4 +128,27 @@ mod tests {
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("No Runfile found"));
   }
+
+  #[test]
+  fn test_execute_command_with_suffix_varargs_zero_args() {
+    use std::env;
+    let temp_dir = TempDir::new().unwrap();
+    let original_dir = env::current_dir().unwrap();
+
+    // Change to the temporary directory
+    env::set_current_dir(&temp_dir).unwrap();
+
+    // Suffix varargs form should be accepted and optional
+    let runfile_content = "test args...:\n  echo OK\n";
+    fs::write("Runfile", runfile_content).unwrap();
+
+    let pipeline = Pipeline::new();
+    let result = pipeline.execute_command("test", vec![]);
+
+    // Should succeed with zero args for varargs
+    assert!(result.is_ok(), "expected success with zero args, got: {:?}", result);
+
+    // Restore original directory
+    env::set_current_dir(original_dir).unwrap();
+  }
 }

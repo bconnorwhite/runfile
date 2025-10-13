@@ -329,9 +329,13 @@ impl TokenizePhase {
     while i < parts.len() {
       let part = &parts[i];
 
-      if part.starts_with("...") {
-        // Varargs
-        let arg_name = part.strip_prefix("...").unwrap_or("args").to_string();
+      if part.starts_with("...") || part.ends_with("...") {
+        // Varargs (support both prefix ...args and suffix args...)
+        let arg_name = if part.starts_with("...") {
+          part.strip_prefix("...").unwrap_or("args").to_string()
+        } else {
+          part.strip_suffix("...").unwrap_or("args").to_string()
+        };
         args.push((arg_name, true, true));
         i += 1;
       } else if part.starts_with('-') {
@@ -472,14 +476,27 @@ impl TokenizePhase {
         if !content_part.contains(' ') && !content_part.is_empty() && !content_part.starts_with('-') {
           // Strip trailing colon if present
           let clean_content = content_part.strip_suffix(':').unwrap_or(content_part);
-          let (arg_name, optional) = if clean_content.ends_with('?') {
-            (clean_content.strip_suffix('?').unwrap().to_string(), true)
-          } else if clean_content.starts_with("...") {
-            (clean_content.strip_prefix("...").unwrap_or("args").to_string(), true)
+          let (arg_name, optional, is_varargs) = if clean_content.starts_with("...") {
+            (
+              clean_content.strip_prefix("...").unwrap_or("args").to_string(),
+              true,
+              true,
+            )
+          } else if clean_content.ends_with("...") {
+            (
+              clean_content.strip_suffix("...").unwrap_or("args").to_string(),
+              true,
+              true,
+            )
+          } else if clean_content.ends_with('?') {
+            (
+              clean_content.strip_suffix('?').unwrap().to_string(),
+              true,
+              false,
+            )
           } else {
-            (clean_content.to_string(), false)
+            (clean_content.to_string(), false, false)
           };
-          let is_varargs = clean_content.starts_with("...");
           return Ok(Some(Token::Argument { name: arg_name, optional, is_varargs, comment }));
         }
       }
