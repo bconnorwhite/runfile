@@ -1,8 +1,10 @@
 use anyhow::Result;
 use std::path::PathBuf;
 use std::fs;
+use std::process::Output;
 
 use crate::phases::{TokenizePhase, ParsePhase, ResolvePhase, RunPhase};
+use crate::phases::run::OutputMode;
 
 pub struct PipelineOptions {
   pub directory: Option<PathBuf>,
@@ -62,7 +64,7 @@ impl Pipeline {
     Err(anyhow::anyhow!("No Runfile found in current directory or parent directories"))
   }
 
-  pub fn execute_command(&self, command_name: &str, cli_args: Vec<String>) -> Result<()> {
+  pub fn execute_command_inherit(&self, command_name: &str, cli_args: Vec<String>) -> Result<()> {
     // Phase 1: Find and read Runfile
     let runfile_path = self.find_runfile()?;
     let content = fs::read_to_string(&runfile_path)?;
@@ -76,10 +78,29 @@ impl Pipeline {
     // Phase 4: Resolve
     let command = self.resolve.resolve(runfile, command_name)?;
 
-    // Phase 5: Run
-    self.run.run(command, cli_args)?;
+    // Phase 5: Run with inherit mode
+    self.run.run(command, cli_args, OutputMode::Inherit)?;
 
     Ok(())
+  }
+
+  pub fn execute_command(&self, command_name: &str, cli_args: Vec<String>) -> Result<Output> {
+    // Phase 1: Find and read Runfile
+    let runfile_path = self.find_runfile()?;
+    let content = fs::read_to_string(&runfile_path)?;
+
+    // Phase 2: Tokenize
+    let tokens = self.tokenize.tokenize(&content)?;
+
+    // Phase 3: Parse
+    let runfile = self.parse.parse(tokens)?;
+
+    // Phase 4: Resolve
+    let command = self.resolve.resolve(runfile, command_name)?;
+
+    // Phase 5: Run with capture mode
+    let output = self.run.run(command, cli_args, OutputMode::Capture)?;
+    output.ok_or_else(|| anyhow::anyhow!("Expected output from capture mode"))
   }
 
   pub fn show_help(&self, colors: bool) -> Result<()> {
@@ -145,5 +166,10 @@ mod tests {
 
     // Should succeed with zero args for varargs
     assert!(result.is_ok(), "expected success with zero args, got: {:?}", result);
+
+    // Verify output contains "OK"
+    let output = result.unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("OK"), "expected output to contain 'OK', got: {}", stdout);
   }
 }

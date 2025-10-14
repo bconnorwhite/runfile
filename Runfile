@@ -1,7 +1,7 @@
 
-# Run the project
-run args...:
-  cargo run $args
+# ---
+# Test
+# ---
 
 # Run tests
 test args...:
@@ -11,3 +11,22 @@ test args...:
 coverage
   -o, --open:  # Open coverage report in browser
   ./scripts/coverage.sh $open
+
+# ---
+# Build
+# ---
+
+# Build the project
+build
+  -r, --release:  # Build in release mode
+  cargo build $release;
+  cd ./vscode-runfile;
+  npm run build;
+
+# ---
+# Run
+# ---
+
+# Run the project
+run args...:
+  cargo run $args

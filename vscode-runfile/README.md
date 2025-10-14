@@ -4,10 +4,11 @@ Syntax highlighting support for Runfile in Visual Studio Code.
 
 ## Features
 
-- Syntax highlighting for Runfile commands, arguments, flags, and shell scripts
-- Support for embedded shell scripts
-- Comment highlighting
-- Group header highlighting
+- Syntax highlighting for Runfile commands, aliases, inline args/flags, and shell scripts
+- Support for embedded shell scripts and indented shebang
+- Comment highlighting (including inline comments on args/flags)
+- Group header highlighting (single-line and 3-line)
+- Folding for entire groups and per-command bodies
 
 ## Installation
 
@@ -27,13 +28,13 @@ To test the extension:
 
 This extension provides syntax highlighting for:
 
-- **Command definitions** - Lines ending with `:`
-- **Arguments** - Indented identifiers with optional `?` suffix
-- **Flags** - Short (`-r`) and long (`--release`) flags
-- **Group headers** - Comment lines with dashes
-- **Comments** - Lines starting with `#`
-- **Shell scripts** - Indented script content
+- **Command definitions** - Aliases (comma-separated), optional inline args (`arg?`, `...args`) and flags (`-s, --long`, `--name=<type>`), optional trailing `:`
+- **Arguments** - Indented names (unicode allowed), optional `?`, varargs `...name`, with optional inline comment after ` # `
+- **Flags** - Short (`-r`), long (`--release`), combined (`-r, --release`), and value flags (`--output=<file>`)
+- **Group headers** - Single-line `# --- Name ---` or multi-line 3-line headers
+- **Comments** - Lines starting with `#`, preserved in script blocks
+- **Shell scripts** - Indented script content, including indented shebang `#!/...`
 
-## License
-
-MIT
+### Folding
+- Groups (both header styles) fold from header through their contents
+- Commands fold from the command line through the indented body

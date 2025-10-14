@@ -1,6 +1,12 @@
 use anyhow::{Result, anyhow};
-use std::process::{Command as ProcessCommand, Stdio};
+use std::process::{Command as ProcessCommand, Stdio, Output};
 use super::parse::Command;
+
+#[derive(Clone, Copy, Debug)]
+pub enum OutputMode {
+  Inherit,
+  Capture,
+}
 
 pub struct RunPhase;
 
@@ -9,7 +15,7 @@ impl RunPhase {
     Self
   }
 
-  pub fn run(&self, command: Command, cli_args: Vec<String>) -> Result<()> {
+  pub fn run(&self, command: Command, cli_args: Vec<String>, mode: OutputMode) -> Result<Option<Output>> {
     // Parse CLI arguments and flags
     let (provided_args, provided_flags, provided_flag_values) = self.parse_cli_args(&command, cli_args)?;
 
@@ -49,9 +55,7 @@ impl RunPhase {
     }
 
     // Execute the script
-    self.execute_script(&command, env_vars)?;
-
-    Ok(())
+    self.execute_script(&command, env_vars, mode)
   }
 
   fn parse_cli_args(&self, command: &Command, cli_args: Vec<String>) -> Result<(Vec<String>, std::collections::HashSet<String>, std::collections::HashMap<String, String>)> {
@@ -144,7 +148,7 @@ impl RunPhase {
     Ok(())
   }
 
-  fn execute_script(&self, command: &Command, env_vars: std::collections::HashMap<String, String>) -> Result<()> {
+  fn execute_script(&self, command: &Command, env_vars: std::collections::HashMap<String, String>, mode: OutputMode) -> Result<Option<Output>> {
     // Extract the shell from shebang
     let shell = if command.shebang.starts_with("#!") {
       command.shebang.strip_prefix("#!").unwrap().trim()
@@ -155,22 +159,34 @@ impl RunPhase {
     // Create the command
     let mut cmd = ProcessCommand::new(shell);
     cmd.arg("-c")
-       .arg(&command.script)
-       .stdout(Stdio::inherit())
-       .stderr(Stdio::inherit());
+       .arg(&command.script);
 
     // Set environment variables
     for (key, value) in env_vars {
       cmd.env(&key, &value);
     }
 
-    // Execute
-    let status = cmd.status()?;
-    if !status.success() {
-      return Err(anyhow!("Command failed with exit code: {}", status.code().unwrap_or(-1)));
+    // Execute based on mode
+    match mode {
+      OutputMode::Inherit => {
+        cmd.stdout(Stdio::inherit())
+           .stderr(Stdio::inherit());
+        let status = cmd.status()?;
+        if !status.success() {
+          return Err(anyhow!("Command failed with exit code: {}", status.code().unwrap_or(-1)));
+        }
+        Ok(None)
+      }
+      OutputMode::Capture => {
+        cmd.stdout(Stdio::piped())
+           .stderr(Stdio::piped());
+        let output = cmd.output()?;
+        if !output.status.success() {
+          return Err(anyhow!("Command failed with exit code: {}", output.status.code().unwrap_or(-1)));
+        }
+        Ok(Some(output))
+      }
     }
-
-    Ok(())
   }
 }
 
