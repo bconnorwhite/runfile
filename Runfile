@@ -8,7 +8,8 @@ fmt:
   cargo fmt;
 
 # Run tests
-test args...:
+test
+  args...: # Additional arguments to pass to cargo test
   cargo test $args
 
 # Generate coverage report
@@ -24,6 +25,7 @@ check:
 clippy:
   cargo clippy;
 
+# Format, test, check, and clippy
 verify:
   run fmt;
   run test;
@@ -46,5 +48,6 @@ build
 # ---
 
 # Run the project
-run args...:
+run
+  args...:  # Additional arguments to pass to cargo run
   cargo run $args
