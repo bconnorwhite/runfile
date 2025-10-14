@@ -1,7 +1,11 @@
 
 # ---
-# Test
+# Verify
 # ---
+
+# Run cargo fmt
+fmt:
+  cargo fmt;
 
 # Run tests
 test args...:
@@ -11,6 +15,20 @@ test args...:
 coverage
   -o, --open:  # Open coverage report in browser
   ./scripts/coverage.sh $open
+
+# Run cargo check
+check:
+  cargo check;
+
+# Run cargo clippy
+clippy:
+  cargo clippy;
+
+verify:
+  run fmt;
+  run test;
+  run check;
+  run clippy;
 
 # ---
 # Build

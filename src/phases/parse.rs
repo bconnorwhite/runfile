@@ -1,7 +1,9 @@
-use anyhow::Result;
-use super::tokenize::Token;
 use std::io::Write;
+
 use ansi_term::Colour;
+use anyhow::Result;
+
+use super::tokenize::Token;
 
 #[derive(Debug, Clone)]
 pub struct Runfile {
@@ -42,20 +44,19 @@ pub struct Flag {
   pub description: Option<String>,
 }
 
+#[derive(Default)]
 pub struct ParsePhase;
 
 impl ParsePhase {
   pub fn new() -> Self {
     Self
   }
-
   pub fn parse(&self, tokens: Vec<Token>) -> Result<Runfile> {
     let mut groups = Vec::new();
     let mut commands = Vec::new();
     let mut current_group: Option<String> = None;
     let mut current_command: Option<Command> = None;
     let mut in_script = false;
-
     for token in tokens {
       match token {
         Token::GroupHeader { name } => {
@@ -63,21 +64,23 @@ impl ParsePhase {
           if let Some(cmd) = current_command.take() {
             commands.push(cmd);
           }
-
           current_group = Some(name.clone());
-          groups.push(Group {
-            name,
-          });
+          groups.push(Group { name });
           in_script = false;
         }
-        Token::CommandName { name, inline_args, inline_flags, comment } => {
+        Token::CommandName {
+          name,
+          inline_args,
+          inline_flags,
+          comment,
+        } => {
           // Save any current command
           if let Some(cmd) = current_command.take() {
             commands.push(cmd);
           }
-
           // Convert inline args and flags to proper structures
-          let args: Vec<Argument> = inline_args.into_iter()
+          let args: Vec<Argument> = inline_args
+            .into_iter()
             .map(|(name, optional, is_varargs)| Argument {
               name,
               optional,
@@ -85,8 +88,8 @@ impl ParsePhase {
               description: None,
             })
             .collect();
-
-          let flags: Vec<Flag> = inline_flags.into_iter()
+          let flags: Vec<Flag> = inline_flags
+            .into_iter()
             .map(|(long, short, takes_value, type_hint)| Flag {
               short,
               long,
@@ -95,7 +98,6 @@ impl ParsePhase {
               description: None,
             })
             .collect();
-
           current_command = Some(Command {
             names: name.clone(),
             description: comment,
@@ -107,7 +109,12 @@ impl ParsePhase {
           });
           in_script = false;
         }
-        Token::Argument { name, optional, is_varargs, comment } => {
+        Token::Argument {
+          name,
+          optional,
+          is_varargs,
+          comment,
+        } => {
           if let Some(ref mut cmd) = current_command {
             if !in_script {
               cmd.args.push(Argument {
@@ -121,11 +128,17 @@ impl ParsePhase {
               if !cmd.script.is_empty() {
                 cmd.script.push('\n');
               }
-              cmd.script.push_str(&format!("{}", name));
+              cmd.script.push_str(&name);
             }
           }
         }
-        Token::Flag { long_name, short, takes_value, type_hint, comment } => {
+        Token::Flag {
+          long_name,
+          short,
+          takes_value,
+          type_hint,
+          comment,
+        } => {
           if let Some(ref mut cmd) = current_command {
             if !in_script {
               cmd.flags.push(Flag {
@@ -140,7 +153,9 @@ impl ParsePhase {
               if !cmd.script.is_empty() {
                 cmd.script.push('\n');
               }
-              cmd.script.push_str(&format!("-{}, --{}", short.unwrap_or(' '), long_name));
+              cmd
+                .script
+                .push_str(&format!("-{}, --{}", short.unwrap_or(' '), long_name));
             }
           }
         }
@@ -153,7 +168,6 @@ impl ParsePhase {
               }
               in_script = true;
             }
-
             if !cmd.script.is_empty() {
               cmd.script.push('\n');
             }
@@ -181,17 +195,15 @@ impl ParsePhase {
         }
       }
     }
-
     // Save the last command
     if let Some(cmd) = current_command {
       commands.push(cmd);
     }
-
     // Filter out empty groups
-    let groups: Vec<Group> = groups.into_iter()
+    let groups: Vec<Group> = groups
+      .into_iter()
       .filter(|group| !group.name.is_empty())
       .collect();
-
     Ok(Runfile { groups, commands })
   }
 }
@@ -237,29 +249,30 @@ impl Runfile {
       writeln!(output).unwrap();
       return;
     }
-
     // Helper function to format descriptions with or without colors
     let format_description = |description: &str| -> String {
       if description.is_empty() {
         String::new()
       } else if colors {
-        Colour::Fixed(8).paint(format!(" # {}", description)).to_string()
+        Colour::Fixed(8)
+          .paint(format!(" # {}", description))
+          .to_string()
       } else {
         format!(" # {}", description)
       }
     };
-
     // Group commands by their groups
     let mut grouped_commands = std::collections::HashMap::new();
     for command in &self.commands {
       let group_name = command.group.as_deref().unwrap_or("General");
-      grouped_commands.entry(group_name).or_insert_with(Vec::new).push(command);
+      grouped_commands
+        .entry(group_name)
+        .or_insert_with(Vec::new)
+        .push(command);
     }
-
     // Calculate global max widths across all commands
     let mut global_max_command_len = 0;
     let mut global_max_param_len = 0;
-
     for command in &self.commands {
       let command_display = if !command.names.is_empty() {
         command.names.join(", ")
@@ -267,7 +280,6 @@ impl Runfile {
         "".to_string()
       };
       global_max_command_len = global_max_command_len.max(command_display.len());
-
       for arg in &command.args {
         let arg_display = if arg.is_varargs {
           format!("...{}", arg.name)
@@ -287,24 +299,19 @@ impl Runfile {
         global_max_param_len = global_max_param_len.max(flag_display.len());
       }
     }
-
     // Calculate alignment points - comments should align to the widest command or param
     // Commands are indented 2 spaces, params are indented 4 spaces
     // We need to find the widest element INCLUDING indent, then round up
     let max_with_indent = (2 + global_max_command_len).max(4 + global_max_param_len);
-
     // Round up to nearest multiple of 2
-    let align_point = ((max_with_indent + 1) / 2) * 2; // Round up to nearest even
-
     // Both commands and params use the same alignment point (measured from start of text, not line)
     // This represents the width that text + padding should occupy BEFORE the space that format_description adds
     // So we subtract 1 to account for that space
+    let align_point = max_with_indent.div_ceil(2) * 2;
     let command_align_point = align_point - 1;
     let param_align_point = align_point - 1;
-
     // Track which groups we've printed
     let mut printed_groups = std::collections::HashSet::new();
-
     // Print ungrouped commands first (only if they exist)
     if let Some(commands) = grouped_commands.get("General") {
       for command in commands {
@@ -314,18 +321,20 @@ impl Runfile {
         } else {
           "".to_string()
         };
-
         let description = command.description.as_deref().unwrap_or("");
-
         if description.is_empty() {
           // For commands without descriptions, don't add trailing spaces
           writeln!(output, "{}", command_display).unwrap();
         } else {
           let command_padding = " ".repeat(command_align_point.saturating_sub(command_display.len()));
           let formatted_description = format_description(description);
-          writeln!(output, "{}{}{}", command_display, command_padding, formatted_description).unwrap();
+          writeln!(
+            output,
+            "{}{}{}",
+            command_display, command_padding, formatted_description
+          )
+          .unwrap();
         }
-
         for arg in &command.args {
           let arg_display = if arg.is_varargs {
             format!("...{}", arg.name)
@@ -335,13 +344,17 @@ impl Runfile {
           };
           let description = arg.description.as_deref().unwrap_or("");
           let formatted_description = format_description(description);
-
           if description.is_empty() {
             // For items without descriptions, don't add trailing spaces
             writeln!(output, "  {}", arg_display).unwrap();
           } else {
             let padding = " ".repeat(param_align_point.saturating_sub(arg_display.len()));
-            writeln!(output, "  {}{}{}", arg_display, padding, formatted_description).unwrap();
+            writeln!(
+              output,
+              "  {}{}{}",
+              arg_display, padding, formatted_description
+            )
+            .unwrap();
           }
         }
         for flag in &command.flags {
@@ -353,19 +366,22 @@ impl Runfile {
           let flag_display = format!("{}--{}", short_part, flag.long);
           let description = flag.description.as_deref().unwrap_or("");
           let formatted_description = format_description(description);
-
           if description.is_empty() {
             // For items without descriptions, don't add trailing spaces
             writeln!(output, "  {}", flag_display).unwrap();
           } else {
             let padding = " ".repeat(param_align_point.saturating_sub(flag_display.len()));
-            writeln!(output, "  {}{}{}", flag_display, padding, formatted_description).unwrap();
+            writeln!(
+              output,
+              "  {}{}{}",
+              flag_display, padding, formatted_description
+            )
+            .unwrap();
           }
         }
       }
       printed_groups.insert("General".to_string());
     }
-
     // Print each group
     for group in &self.groups {
       if let Some(commands) = grouped_commands.get(group.name.as_str()) {
@@ -375,7 +391,6 @@ impl Runfile {
           writeln!(output, "{}", Colour::White.bold().paint(&group.name)).unwrap();
         }
         printed_groups.insert(group.name.clone());
-
         for command in commands {
           // Build command display with aliases
           let command_display = if !command.names.is_empty() {
@@ -383,18 +398,20 @@ impl Runfile {
           } else {
             "".to_string()
           };
-
           let description = command.description.as_deref().unwrap_or("");
-
           if description.is_empty() {
             // For commands without descriptions, don't add trailing spaces
             writeln!(output, "  {}", command_display).unwrap();
           } else {
             let command_padding = " ".repeat(command_align_point.saturating_sub(command_display.len()));
             let formatted_description = format_description(description);
-            writeln!(output, "  {}{}{}", command_display, command_padding, formatted_description).unwrap();
+            writeln!(
+              output,
+              "  {}{}{}",
+              command_display, command_padding, formatted_description
+            )
+            .unwrap();
           }
-
           for arg in &command.args {
             let arg_display = if arg.is_varargs {
               format!("...{}", arg.name)
@@ -404,13 +421,17 @@ impl Runfile {
             };
             let description = arg.description.as_deref().unwrap_or("");
             let formatted_description = format_description(description);
-
             if description.is_empty() {
               // For items without descriptions, don't add trailing spaces
               writeln!(output, "    {}", arg_display).unwrap();
             } else {
               let padding = " ".repeat(param_align_point.saturating_sub(arg_display.len()));
-              writeln!(output, "    {}{}{}", arg_display, padding, formatted_description).unwrap();
+              writeln!(
+                output,
+                "    {}{}{}",
+                arg_display, padding, formatted_description
+              )
+              .unwrap();
             }
           }
           for flag in &command.flags {
@@ -422,27 +443,29 @@ impl Runfile {
             let flag_display = format!("{}--{}", short_part, flag.long);
             let description = flag.description.as_deref().unwrap_or("");
             let formatted_description = format_description(description);
-
             if description.is_empty() {
               // For items without descriptions, don't add trailing spaces
               writeln!(output, "    {}", flag_display).unwrap();
             } else {
               let padding = " ".repeat(param_align_point.saturating_sub(flag_display.len()));
-              writeln!(output, "    {}{}{}", flag_display, padding, formatted_description).unwrap();
+              writeln!(
+                output,
+                "    {}{}{}",
+                flag_display, padding, formatted_description
+              )
+              .unwrap();
             }
           }
         }
         writeln!(output).unwrap();
       }
     }
-
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use super::*;
-  use super::super::tokenize::TokenizePhase;
+  use super::{super::tokenize::TokenizePhase, *};
 
   #[test]
   fn test_parse_simple_command() {
@@ -553,7 +576,10 @@ mod tests {
     assert_eq!(runfile.commands.len(), 1);
     let cmd = &runfile.commands[0];
     assert_eq!(cmd.names, vec!["hello"]);
-    assert_eq!(cmd.description, Some("First comment Second comment".to_string()));
+    assert_eq!(
+      cmd.description,
+      Some("First comment Second comment".to_string())
+    );
   }
 
   #[test]
@@ -575,7 +601,11 @@ mod tests {
 
     // Test help output
     let help = runfile.generate_help(false);
-    assert!(help.contains("...args"), "Help should contain '...args' but got: {}", help);
+    assert!(
+      help.contains("...args"),
+      "Help should contain '...args' but got: {}",
+      help
+    );
   }
 
   #[test]
@@ -606,7 +636,11 @@ mod tests {
     // Test help output
     let help = runfile.generate_help(false);
     eprintln!("Help output:\n{}", help);
-    assert!(help.contains("...args"), "Help should contain '...args' but got: {}", help);
+    assert!(
+      help.contains("...args"),
+      "Help should contain '...args' but got: {}",
+      help
+    );
   }
 
   #[test]
@@ -630,15 +664,21 @@ mod tests {
     for cmd in &runfile.commands {
       eprintln!("Command: {:?}", cmd.names);
       for arg in &cmd.args {
-        eprintln!("  Arg: name={}, optional={}, is_varargs={}",
-                 arg.name, arg.optional, arg.is_varargs);
+        eprintln!(
+          "  Arg: name={}, optional={}, is_varargs={}",
+          arg.name, arg.optional, arg.is_varargs
+        );
       }
     }
 
     // Test help output
     let help = runfile.generate_help(false);
     eprintln!("\nHelp output from varargs.runfile:\n{}", help);
-    assert!(help.contains("...args"), "Help should contain '...args' but got: {}", help);
+    assert!(
+      help.contains("...args"),
+      "Help should contain '...args' but got: {}",
+      help
+    );
   }
 
   #[test]
@@ -689,7 +729,10 @@ mod tests {
     assert_eq!(cmd.names, vec!["build"]);
     assert_eq!(cmd.args.len(), 1);
     assert_eq!(cmd.args[0].name, "target");
-    assert_eq!(cmd.args[0].description, Some("The build target".to_string()));
+    assert_eq!(
+      cmd.args[0].description,
+      Some("The build target".to_string())
+    );
   }
 
   #[test]
@@ -706,7 +749,10 @@ mod tests {
     assert_eq!(cmd.names, vec!["build"]);
     assert_eq!(cmd.flags.len(), 1);
     assert_eq!(cmd.flags[0].long, "debug");
-    assert_eq!(cmd.flags[0].description, Some("Enable debug mode".to_string()));
+    assert_eq!(
+      cmd.flags[0].description,
+      Some("Enable debug mode".to_string())
+    );
   }
 
   #[test]
@@ -721,7 +767,10 @@ mod tests {
     assert_eq!(runfile.groups.len(), 1);
     assert_eq!(runfile.groups[0].name, "Build Commands");
     assert_eq!(runfile.commands.len(), 1);
-    assert_eq!(runfile.commands[0].group, Some("Build Commands".to_string()));
+    assert_eq!(
+      runfile.commands[0].group,
+      Some("Build Commands".to_string())
+    );
   }
 
   #[test]

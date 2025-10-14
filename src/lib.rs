@@ -10,14 +10,12 @@ use crate::phases::{ParsePhase, TokenizePhase};
 pub use crate::pipeline::Pipeline;
 
 /// Find a runfile in the current directory or parent directories
-
 pub fn find_runfile() -> Result<PathBuf> {
   let pipeline = Pipeline::new();
   pipeline.find_runfile()
 }
 
 /// Parse a runfile content string and return the parsed Runfile structure
-
 pub fn parse_runfile(content: &str) -> Result<crate::phases::parse::Runfile> {
   let tokenize = TokenizePhase::new();
   let parse = ParsePhase::new();
@@ -27,7 +25,6 @@ pub fn parse_runfile(content: &str) -> Result<crate::phases::parse::Runfile> {
 }
 
 /// Execute a command
-
 pub fn execute_command(args: &[String]) -> Result<()> {
   let pipeline = Pipeline::new();
   if args.is_empty() {

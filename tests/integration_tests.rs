@@ -1,5 +1,4 @@
-use std::fs;
-use std::path::Path;
+use std::{fs, path::Path};
 
 #[test]
 fn test_all_sample_help_outputs() {
@@ -12,7 +11,10 @@ fn test_all_sample_help_outputs() {
     let path = entry.path();
     if path.extension().and_then(|e| e.to_str()) == Some("runfile") {
       // Extract the base name (without extension)
-      let file_stem = path.file_stem().and_then(|s| s.to_str()).expect("No file stem");
+      let file_stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("No file stem");
       let runfile_content = fs::read_to_string(&path).expect("Could not read sample file");
 
       // Check the corresponding expected file exists
@@ -25,12 +27,13 @@ fn test_all_sample_help_outputs() {
       );
 
       // Read expected output
-      let expected_output = fs::read_to_string(&expected_file)
-        .expect("Could not read expected file");
+      let expected_output = fs::read_to_string(&expected_file).expect("Could not read expected file");
 
       // Parse the runfile and generate help output
-      let runfile = run::parse_runfile(&runfile_content)
-        .expect(&format!("Failed to parse runfile for sample {:?}", file_stem));
+      let runfile = run::parse_runfile(&runfile_content).expect(&format!(
+        "Failed to parse runfile for sample {:?}",
+        file_stem
+      ));
 
       let actual_output = runfile.generate_help(false);
 
