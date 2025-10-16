@@ -716,6 +716,37 @@ mod tests {
   }
 
   #[test]
+  fn test_parse_command_with_relative_script() {
+    let tokenizer = TokenizePhase::new();
+    let parser = ParsePhase::new();
+
+    let content = "test:\n  ./example.sh;";
+    let tokens = tokenizer.tokenize(content).unwrap();
+    let runfile = parser.parse(tokens).unwrap();
+
+    assert_eq!(runfile.commands.len(), 1);
+    let cmd = &runfile.commands[0];
+    assert_eq!(cmd.names, vec!["test"]);
+    assert_eq!(cmd.script.trim(), "./example.sh;");
+  }
+
+  #[test]
+  fn test_parse_command_with_tab_indented_script() {
+    let tokenizer = TokenizePhase::new();
+    let parser = ParsePhase::new();
+
+    let content = "list:\n\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name';\n\techo \"---\";\n\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name' | wc -l | xargs echo \"Crates:\";";
+    let tokens = tokenizer.tokenize(content).unwrap();
+    let runfile = parser.parse(tokens).unwrap();
+
+    assert_eq!(runfile.commands.len(), 1);
+    let cmd = &runfile.commands[0];
+    assert_eq!(cmd.names, vec!["list"]);
+    let expected_script = "cargo metadata --format-version=1 --no-deps | jq -r '.packages[].name';\n\techo \"---\";\n\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name' | wc -l | xargs echo \"Crates:\";";
+    assert_eq!(cmd.script.trim(), expected_script);
+  }
+
+  #[test]
   fn test_parse_command_with_argument_comment() {
     let tokenizer = TokenizePhase::new();
     let parser = ParsePhase::new();

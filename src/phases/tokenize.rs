@@ -61,7 +61,7 @@ impl TokenizePhase {
       return false;
     }
     // Must not be indented (arguments and flags are indented)
-    if line.starts_with("  ") {
+    if line.starts_with("  ") || line.starts_with("\t") {
       return false;
     }
     // Check if line ends with colon
@@ -121,6 +121,8 @@ impl TokenizePhase {
     let mut tokens = Vec::new();
     let lines: Vec<&str> = content.lines().collect();
     let mut i = 0;
+    let mut in_script_body = false;
+    let mut seen_script_line = false;
     while i < lines.len() {
       let line = lines[i];
       let trimmed = line.trim();
@@ -135,6 +137,8 @@ impl TokenizePhase {
             .trim()
             .to_string();
           tokens.push(Token::GroupHeader { name: group_name });
+          in_script_body = false; // Reset script state for new group
+          seen_script_line = false; // Reset script line tracking
           i += 3; // Skip the next two lines
           continue;
         }
@@ -177,8 +181,13 @@ impl TokenizePhase {
         } else {
           Some(comment_lines.join(" "))
         };
-        let token = self.parse_line_with_comment(line, comment)?;
+        let token = self.parse_line_with_comment(line, comment, in_script_body, &mut seen_script_line)?;
         if let Some(token) = token {
+          // Set script state based on whether command line ends with ':'
+          if let Token::CommandName { .. } = &token {
+            in_script_body = trimmed.ends_with(':');
+            seen_script_line = false; // Reset script line tracking for new command
+          }
           tokens.push(token);
         }
       } else {
@@ -211,7 +220,7 @@ impl TokenizePhase {
           }
         }
         // Process normally
-        let token = self.parse_line(line)?;
+        let token = self.parse_line(line, in_script_body, &mut seen_script_line)?;
         if let Some(token) = token {
           tokens.push(token);
         }
@@ -220,7 +229,13 @@ impl TokenizePhase {
     }
     Ok(tokens)
   }
-  fn parse_line_with_comment(&self, line: &str, comment: Option<String>) -> Result<Option<Token>> {
+  fn parse_line_with_comment(
+    &self,
+    line: &str,
+    comment: Option<String>,
+    in_script_body: bool,
+    seen_script_line: &mut bool,
+  ) -> Result<Option<Token>> {
     let trimmed = line.trim();
     if trimmed.is_empty() {
       return Ok(None);
@@ -255,7 +270,7 @@ impl TokenizePhase {
       }));
     }
     // Rest of the parsing logic for non-command lines
-    self.parse_line(line)
+    self.parse_line(line, in_script_body, seen_script_line)
   }
   fn parse_command_line(&self, line: &str) -> Result<(Vec<String>, Vec<String>)> {
     let parts: Vec<&str> = line.split_whitespace().collect();
@@ -370,7 +385,7 @@ impl TokenizePhase {
     // Boolean flag: --flag
     Ok((flag.to_string(), false, None))
   }
-  fn parse_line(&self, line: &str) -> Result<Option<Token>> {
+  fn parse_line(&self, line: &str, in_script_body: bool, seen_script_line: &mut bool) -> Result<Option<Token>> {
     let trimmed = line.trim();
     if trimmed.is_empty() {
       return Ok(None);
@@ -404,9 +419,40 @@ impl TokenizePhase {
         comment: None,
       }));
     }
-    // Indented argument or flag: must be exactly 2 spaces, no more
+    // Indented argument or flag: must be exactly 2 spaces, no more, or tab-indented
     // Allow shebang lines even when indented
-    if line.starts_with("  ") && !line.starts_with("   ") && (!trimmed.starts_with('#') || trimmed.starts_with("#!/")) {
+    if ((line.starts_with("  ") && !line.starts_with("   ")) || line.starts_with("\t"))
+      && (!trimmed.starts_with('#') || trimmed.starts_with("#!/"))
+    {
+      // If we're in script body and have seen a script line, treat all indented lines as script
+      if in_script_body && *seen_script_line {
+        return Ok(Some(Token::ScriptLine {
+          content: line.to_string(),
+        }));
+      }
+      // If we're in script body and this looks like a script line (not an argument/flag), treat it as script
+      if in_script_body {
+        let content = trimmed;
+        let content_part = if let Some(comment_start) = content.find(" # ") {
+          let (before, _) = content.split_at(comment_start);
+          before.trim()
+        } else {
+          content
+        };
+        // Check if this looks like a script line rather than an argument/flag
+        // Script lines typically start with paths, end with semicolons, or contain shell operators
+        if content_part.starts_with("./")
+          || content_part.starts_with('/')
+          || content_part.ends_with(';')
+          || (content_part.contains(' ')
+            && (content_part.contains('|') || content_part.contains('&') || content_part.contains('>')))
+        {
+          *seen_script_line = true;
+          return Ok(Some(Token::ScriptLine {
+            content: line.to_string(),
+          }));
+        }
+      }
       let content = trimmed;
       // Extract comment if present
       let (content_part, comment) = if let Some(comment_start) = content.find(" # ") {
@@ -502,6 +548,7 @@ impl TokenizePhase {
     if trimmed.starts_with('#') {
       // Check if it's a shebang (starts with #!)
       if trimmed.starts_with("#!/") {
+        *seen_script_line = true;
         Ok(Some(Token::ScriptLine {
           content: line.to_string(),
         }))
@@ -511,6 +558,7 @@ impl TokenizePhase {
         }))
       }
     } else {
+      *seen_script_line = true;
       Ok(Some(Token::ScriptLine {
         content: line.to_string(),
       }))
@@ -903,6 +951,66 @@ mod tests {
       tokens[1],
       Token::ScriptLine {
         content: "  echo \"Another line\"".to_string()
+      }
+    );
+  }
+
+  #[test]
+  fn test_relative_path_script_line_under_command() {
+    let tokenizer = TokenizePhase::new();
+    let content = "test:\n  ./example.sh;";
+    let tokens = tokenizer.tokenize(content).unwrap();
+
+    assert_eq!(
+      tokens[0],
+      Token::CommandName {
+        name: vec!["test".to_string()],
+        inline_args: vec![],
+        inline_flags: vec![],
+        comment: None
+      }
+    );
+    assert_eq!(
+      tokens[1],
+      Token::ScriptLine {
+        content: "  ./example.sh;".to_string()
+      }
+    );
+  }
+
+  #[test]
+  fn test_tab_indented_script_lines_after_colon() {
+    let tokenizer = TokenizePhase::new();
+    let content = "list:\n\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name';\n\techo \"---\";\n\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name' | wc -l | xargs echo \"Crates:\";";
+    let tokens = tokenizer.tokenize(content).unwrap();
+
+    assert_eq!(
+      tokens[0],
+      Token::CommandName {
+        name: vec!["list".to_string()],
+        inline_args: vec![],
+        inline_flags: vec![],
+        comment: None
+      }
+    );
+    assert_eq!(
+      tokens[1],
+      Token::ScriptLine {
+        content: "\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name';".to_string()
+      }
+    );
+    assert_eq!(
+      tokens[2],
+      Token::ScriptLine {
+        content: "\techo \"---\";".to_string()
+      }
+    );
+    assert_eq!(
+      tokens[3],
+      Token::ScriptLine {
+        content:
+          "\tcargo metadata --format-version=1 --no-deps | jq -r '.packages[].name' | wc -l | xargs echo \"Crates:\";"
+            .to_string()
       }
     );
   }
