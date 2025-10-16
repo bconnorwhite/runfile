@@ -39,22 +39,24 @@ impl RunPhase {
         env_vars.insert(arg.name.clone(), value.clone());
       }
     }
-    // Set flag values (both UPPER_SNAKE and lower_snake)
+    // Set flag values (both UPPER_SNAKE and lower_snake), with '-' replaced by '_' in env var names
     for flag in &command.flags {
+      let key_lower = flag.long.replace('-', "_");
+      let key_upper = key_lower.to_uppercase();
       if let Some(value) = provided_flag_values.get(&flag.long) {
-        // Value flag: set both UPPER_SNAKE and lower_snake
-        env_vars.insert(flag.long.to_uppercase(), value.clone());
-        env_vars.insert(flag.long.clone(), format!("--{}={}", flag.long, value));
+        // Value flag: set value in UPPER, and forwarded flag string in lower
+        env_vars.insert(key_upper, value.clone());
+        env_vars.insert(key_lower, format!("--{}={}", flag.long, value));
       } else if provided_flags.contains(&flag.long) {
-        // Boolean flag: set both UPPER_SNAKE and lower_snake
-        env_vars.insert(flag.long.to_uppercase(), "true".to_string());
+        // Boolean flag: true in UPPER, forwarded flag in lower
+        env_vars.insert(key_upper, "true".to_string());
         // Use the flag the user provided (short or long)
         let flag_string = if let Some(short) = flag.short {
           format!("-{}", short)
         } else {
           format!("--{}", flag.long)
         };
-        env_vars.insert(flag.long.clone(), flag_string);
+        env_vars.insert(key_lower, flag_string);
       }
     }
     // Execute the script
@@ -349,5 +351,67 @@ mod tests {
         .to_string()
         .contains("Required argument")
     );
+  }
+
+  #[test]
+  fn test_dashed_boolean_flag_env_vars() {
+    let run_phase = RunPhase::new();
+    let command = Command {
+      names: vec!["build".to_string()],
+      description: None,
+      group: None,
+      args: vec![],
+      flags: vec![Flag {
+        short: None,
+        long: "per-crate".to_string(),
+        takes_value: false,
+        type_hint: None,
+        description: None,
+      }],
+      script: "echo \"$per_crate|$PER_CRATE\"".to_string(),
+      shebang: "#!/bin/sh".to_string(),
+    };
+
+    let output = run_phase
+      .run(
+        command,
+        vec!["--per-crate".to_string()],
+        OutputMode::Capture,
+      )
+      .unwrap()
+      .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    assert_eq!(stdout, "--per-crate|true");
+  }
+
+  #[test]
+  fn test_dashed_value_flag_env_vars() {
+    let run_phase = RunPhase::new();
+    let command = Command {
+      names: vec!["build".to_string()],
+      description: None,
+      group: None,
+      args: vec![],
+      flags: vec![Flag {
+        short: None,
+        long: "per-crate".to_string(),
+        takes_value: true,
+        type_hint: None,
+        description: None,
+      }],
+      script: "echo \"$per_crate|$PER_CRATE\"".to_string(),
+      shebang: "#!/bin/sh".to_string(),
+    };
+
+    let output = run_phase
+      .run(
+        command,
+        vec!["--per-crate=fast".to_string()],
+        OutputMode::Capture,
+      )
+      .unwrap()
+      .unwrap();
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    assert_eq!(stdout, "--per-crate=fast|fast");
   }
 }

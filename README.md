@@ -52,9 +52,24 @@ build -r, --release:
 **Flag Variables:**
 
 Both the value passed to a flag and the flag itself are provided to each command's script.
-This makes it easy to either use that value or forward the flag to antother script.
-- `$flag` - The actual flag/value pair passed (e.g., `"--release"`, `"--output=build/app"`).
-- `$FLAG` - The flag's value (e.g., `true`, `"build/app"`)
+This makes it easy to either use that value or forward the flag to another script.
+- `$flag` - The actual flag/value pair passed (e.g., "--release", "--output=build/app").
+- `$FLAG` - The flag's value (e.g., `true`, "build/app")
+
+When a flag's long name contains dashes, variable names use underscores instead.
+For example, `--per-crate` becomes `$per_crate` and `$PER_CRATE`.
+This only affects the variable names; the forwarded flag string keeps dashes:
+
+```runfile
+build --per-crate --mode=<name>:
+  # Boolean flag
+  echo "$per_crate"   # prints "--per-crate"
+  echo "$PER_CRATE"   # prints "true"
+
+  # Value flag example
+  echo "$mode"        # prints "--mode=fast" (if --mode=fast was passed)
+  echo "$MODE"        # prints "fast"
+```
 
 ### Groups
 ```runfile
