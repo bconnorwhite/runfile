@@ -10,6 +10,7 @@ impl ResolvePhase {
     Self
   }
   pub fn resolve(&self, runfile: Runfile, target_command: &str) -> Result<Command> {
+    self.validate_runfile(&runfile)?;
     // Find the command by name or alias
     let command = runfile
       .commands
@@ -19,6 +20,17 @@ impl ResolvePhase {
     // Validate the command structure
     self.validate_command(&command)?;
     Ok(command)
+  }
+  fn validate_runfile(&self, runfile: &Runfile) -> Result<()> {
+    let mut names = std::collections::HashSet::new();
+    for command in &runfile.commands {
+      for name in &command.names {
+        if !names.insert(name.clone()) {
+          return Err(anyhow!("Duplicate command name or alias: {}", name));
+        }
+      }
+    }
+    Ok(())
   }
   fn validate_command(&self, command: &Command) -> Result<()> {
     // Check for duplicate argument names
@@ -38,12 +50,12 @@ impl ResolvePhase {
     if varargs_count > 1 {
       return Err(anyhow!("Only one varargs argument (...args) is allowed"));
     }
-    if let Some(pos) = varargs_position {
-      if pos != command.args.len() - 1 {
-        return Err(anyhow!(
-          "Varargs argument (...args) must be the last argument"
-        ));
-      }
+    if let Some(pos) = varargs_position
+      && pos != command.args.len() - 1
+    {
+      return Err(anyhow!(
+        "Varargs argument (...args) must be the last argument"
+      ));
     }
     // Check for duplicate flag names
     let mut flag_names = std::collections::HashSet::new();
@@ -148,6 +160,43 @@ mod tests {
         .unwrap_err()
         .to_string()
         .contains("Duplicate argument name")
+    );
+  }
+
+  #[test]
+  fn test_resolve_duplicate_command_names() {
+    let resolver = ResolvePhase::new();
+    let runfile = Runfile {
+      groups: vec![],
+      commands: vec![
+        Command {
+          names: vec!["build".to_string()],
+          description: None,
+          group: None,
+          args: vec![],
+          flags: vec![],
+          script: "echo first".to_string(),
+          shebang: "#!/bin/sh".to_string(),
+        },
+        Command {
+          names: vec!["compile".to_string(), "build".to_string()],
+          description: None,
+          group: None,
+          args: vec![],
+          flags: vec![],
+          script: "echo second".to_string(),
+          shebang: "#!/bin/sh".to_string(),
+        },
+      ],
+    };
+
+    let result = resolver.resolve(runfile, "build");
+    assert!(result.is_err());
+    assert!(
+      result
+        .unwrap_err()
+        .to_string()
+        .contains("Duplicate command name or alias: build")
     );
   }
 
