@@ -60,6 +60,9 @@ impl Pipeline {
   pub fn execute_command_inherit(&self, command_name: &str, cli_args: Vec<String>) -> Result<()> {
     // Phase 1: Find and read Runfile
     let runfile_path = self.find_runfile()?;
+    let runfile_dir = runfile_path
+      .parent()
+      .ok_or_else(|| anyhow::anyhow!("Runfile path has no parent directory"))?;
     let content = fs::read_to_string(&runfile_path)?;
     // Phase 2: Tokenize
     let tokens = self.tokenize.tokenize(&content)?;
@@ -68,12 +71,17 @@ impl Pipeline {
     // Phase 4: Resolve
     let command = self.resolve.resolve(runfile, command_name)?;
     // Phase 5: Run with inherit mode
-    self.run.run(command, cli_args, OutputMode::Inherit)?;
+    self
+      .run
+      .run_in_directory(command, cli_args, OutputMode::Inherit, Some(runfile_dir))?;
     Ok(())
   }
   pub fn execute_command(&self, command_name: &str, cli_args: Vec<String>) -> Result<Output> {
     // Phase 1: Find and read Runfile
     let runfile_path = self.find_runfile()?;
+    let runfile_dir = runfile_path
+      .parent()
+      .ok_or_else(|| anyhow::anyhow!("Runfile path has no parent directory"))?;
     let content = fs::read_to_string(&runfile_path)?;
     // Phase 2: Tokenize
     let tokens = self.tokenize.tokenize(&content)?;
@@ -82,7 +90,9 @@ impl Pipeline {
     // Phase 4: Resolve
     let command = self.resolve.resolve(runfile, command_name)?;
     // Phase 5: Run with capture mode
-    let output = self.run.run(command, cli_args, OutputMode::Capture)?;
+    let output = self
+      .run
+      .run_in_directory(command, cli_args, OutputMode::Capture, Some(runfile_dir))?;
     output.ok_or_else(|| anyhow::anyhow!("Expected output from capture mode"))
   }
   pub fn show_help(&self, colors: bool) -> Result<()> {
@@ -165,5 +175,26 @@ mod tests {
       "expected output to contain 'OK', got: {}",
       stdout
     );
+  }
+
+  #[test]
+  fn test_execute_command_from_subdirectory_uses_runfile_directory() {
+    let temp_dir = TempDir::new().unwrap();
+    let project_dir = temp_dir.path().join("project");
+    let subdir = project_dir.join("nested");
+    fs::create_dir_all(&subdir).unwrap();
+
+    let runfile_content = "show:\n  printf '%s\\n' \"$PWD\"\n";
+    fs::write(project_dir.join("Runfile"), runfile_content).unwrap();
+
+    let pipeline = Pipeline::with_options(PipelineOptions {
+      directory: Some(subdir.clone()),
+    });
+    let output = pipeline.execute_command("show", vec![]).unwrap();
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    let expected_dir = project_dir.canonicalize().unwrap();
+    let actual_dir = std::path::PathBuf::from(stdout.trim()).canonicalize().unwrap();
+
+    assert_eq!(actual_dir, expected_dir);
   }
 }
