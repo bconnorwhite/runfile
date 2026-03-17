@@ -44,6 +44,16 @@ build
   npm run build;
 
 # ---
+# Extension
+# ---
+
+# Build and install the VS Code extension with cursor or code
+install-extension
+  editor?:  # Editor CLI to use. Ex: "cursor", "code", etc.
+  cd ./vscode-runfile;
+  npm run install-extension ${editor:+--editor=$editor};
+
+# ---
 # Run
 # ---
 

@@ -47,9 +47,11 @@
     ]
   },
   "scripts": {
-    "build": "vsce package"
+    "build": "vsce package",
+    "install-extension": "sh ./scripts/install-extension.sh"
   },
   "devDependencies": {
-    "@vscode/vsce": "^3.6.2"
+    "@vscode/vsce": "^3.6.2",
+    "pkgv": "^1.1.0"
   }
 }
