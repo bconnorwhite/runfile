@@ -1,5 +1,6 @@
 use std::{
   collections::{HashMap, HashSet},
+  path::Path,
   process::{Command as ProcessCommand, Output, Stdio},
 };
 
@@ -24,6 +25,15 @@ impl RunPhase {
     Self
   }
   pub fn run(&self, command: Command, cli_args: Vec<String>, mode: OutputMode) -> Result<Option<Output>> {
+    self.run_in_directory(command, cli_args, mode, None)
+  }
+  pub fn run_in_directory(
+    &self,
+    command: Command,
+    cli_args: Vec<String>,
+    mode: OutputMode,
+    current_dir: Option<&Path>,
+  ) -> Result<Option<Output>> {
     // Parse CLI arguments and flags
     let (provided_args, provided_flags, provided_flag_values) = self.parse_cli_args(&command, cli_args)?;
     // Validate required arguments are provided
@@ -60,7 +70,7 @@ impl RunPhase {
       }
     }
     // Execute the script
-    self.execute_script(&command, env_vars, mode)
+    self.execute_script(&command, env_vars, mode, current_dir)
   }
   fn parse_cli_args(&self, command: &Command, cli_args: Vec<String>) -> Result<CliArgsResult> {
     let mut provided_args = Vec::new();
@@ -164,6 +174,7 @@ impl RunPhase {
     command: &Command,
     env_vars: HashMap<String, String>,
     mode: OutputMode,
+    current_dir: Option<&Path>,
   ) -> Result<Option<Output>> {
     // Extract the shell from shebang
     let shell = if command.shebang.starts_with("#!") {
@@ -174,6 +185,9 @@ impl RunPhase {
     // Create the command
     let mut cmd = ProcessCommand::new(shell);
     cmd.arg("-c").arg(&command.script);
+    if let Some(current_dir) = current_dir {
+      cmd.current_dir(current_dir);
+    }
     // Set environment variables
     for (key, value) in env_vars {
       cmd.env(&key, &value);
